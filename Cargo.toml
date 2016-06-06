@@ -1,0 +1,6 @@
+[package]
+name = "rust_present"
+version = "0.1.0"
+authors = ["George Teo <george.c.teo@gmail.com>"]
+
+[dependencies]
