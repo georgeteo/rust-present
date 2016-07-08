@@ -1,4 +1,4 @@
-mod front_matter;
+mod header;
 mod slide;
 
 use std::fs::File;
@@ -10,7 +10,7 @@ use std::io::{BufRead, BufReader, Read};
 // It consists of a header (front matter) and a AST for the slide content.
 #[derive(Debug)]
 pub struct AST {
-    header: front_matter::Header,
+    header: header::Header,
     content: Vec<slide::Token>,
 }
 
@@ -28,7 +28,7 @@ impl AST {
     // AST constructor
     fn new() -> AST {
         AST{
-            header: front_matter::Header::new(),
+            header: header::Header::new(),
             content: Vec::new(),
         }
     }
@@ -36,7 +36,7 @@ impl AST {
     // generating the header (front matter) and returning the partially
     // consumed file descriptor.
     fn parse_header<R: Read>(& mut self, reader: & mut BufReader<R>) -> Result<(), Box<Error>> {
-        let mut builder = front_matter::Builder::new();
+        let mut builder = header::Builder::new();
         for (line_num, line) in reader.lines().enumerate() {
             let line = try!(line);
             if builder.end(&line) {

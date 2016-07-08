@@ -1,4 +1,4 @@
-use parser::front_matter::author::author::Author;
+use parser::header::author::author::Author;
 
 // Header struct contains metadata
 #[derive(Clone, Debug)]

@@ -1,6 +1,6 @@
-use parser::front_matter::header::header;
-use parser::front_matter::header::Header;
-use parser::front_matter::author;
+use parser::header::header::header;
+use parser::header::header::Header;
+use parser::header::author;
 
 // Header Builder
 pub struct Builder {
