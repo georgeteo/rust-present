@@ -1,3 +1,6 @@
+use std::fmt;
+use parser::slide::error::TokenError;
+
 // Token for AST
 #[derive(Debug, Clone)]
 pub enum Token {
@@ -57,34 +60,46 @@ pub enum MaybeToken {
 }
 
 impl Token {
-    pub fn new(parent: &Token, lookback: &str, input: char, line_num: usize) -> MaybeToken  {
+    pub fn new(parent: &Token, lookback: &str, input: char, line_num: usize) -> Result<MaybeToken, TokenError> {
         match (parent, lookback, input) {
-            (&Token::Slide(_), "#", '#') | (&Token::Slide(_), "##", '#') |
-                (&Token::Slide(_), "###", '#') => MaybeToken::NoToken,
-            // ("####", '#') => Err("Too many #"),
-            (&Token::Slide(_), "#", ' ') => MaybeToken::NotRecursive(Token::H1(Tokens::new())),
-            (&Token::Slide(_), "##", ' ') => MaybeToken::NotRecursive(Token::H2(Tokens::new())),
-            (&Token::Slide(_), "###", ' ') => MaybeToken::NotRecursive(Token::H3(Tokens::new())),
-            (&Token::Slide(_), "####", ' ') => MaybeToken::NotRecursive(Token::H4(Tokens::new())),
-            // ("#", _) | ("##", _) | ("###", _) | ("####", _) => Err("Expected ' ' or '#'"),
-            (&Token::Slide(_), "", _) => MaybeToken::Recursive(Token::P(Tokens::new())),
-            (&Token::Slide(_), "-", ' ') => MaybeToken::Recursive(Token::UL(Tokens::new())),
-            (&Token::UL(_), "-", ' ') => MaybeToken::NotRecursive(Token::ULEntry(Tokens::new())),
+            (&Token::Slide(_), "#", '#') | (&Token::Slide(_), "##", '#') | (&Token::Slide(_), "###", '#') =>
+                Ok(MaybeToken::NoToken),
+            (&Token::Slide(_), "#", ' ') =>
+                Ok(MaybeToken::NotRecursive(Token::H1(Tokens::new()))),
+            (&Token::Slide(_), "##", ' ') =>
+                Ok(MaybeToken::NotRecursive(Token::H2(Tokens::new()))),
+            (&Token::Slide(_), "###", ' ') =>
+                Ok(MaybeToken::NotRecursive(Token::H3(Tokens::new()))),
+            (&Token::Slide(_), "####", ' ') =>
+                Ok(MaybeToken::NotRecursive(Token::H4(Tokens::new()))),
+            // TODO: ("#", _) | ("##", _) | ("###", _) | ("####", _) => Err("Expected ' ' or '#'"),
+            (&Token::Slide(_), "", _) =>
+                Ok(MaybeToken::Recursive(Token::P(Tokens::new()))),
+            (&Token::Slide(_), "-", ' ') =>
+                Ok(MaybeToken::Recursive(Token::UL(Tokens::new()))),
+            (&Token::UL(_), "-", ' ') =>
+                Ok(MaybeToken::NotRecursive(Token::ULEntry(Tokens::new()))),
             // TODO: OL and OLEntry
-            (&Token::Slide(_), "[", _) => MaybeToken::Recursive(Token::Link(Pair::new())),
+            (&Token::Slide(_), "[", _) =>
+                Ok(MaybeToken::Recursive(Token::Link(Pair::new()))),
             (&Token::Link(_), "[", _) =>
-                MaybeToken::Recursive(Token::DescriptionEntry(String::new())),
-            (&Token::Slide(_), "![", _) => MaybeToken::Recursive(Token::Image(Pair::new())),
+                Ok(MaybeToken::Recursive(Token::DescriptionEntry(String::new()))),
+            (&Token::Slide(_), "![", _) =>
+                Ok(MaybeToken::Recursive(Token::Image(Pair::new()))),
             (&Token::Image(_), "![", _) =>
-                MaybeToken::Recursive(Token::DescriptionEntry(String::new())),
+                Ok(MaybeToken::Recursive(Token::DescriptionEntry(String::new()))),
             (&Token::Link(_), "(", _) | (&Token::Image(_), "(", _) =>
-                MaybeToken::Recursive(Token::PathEntry(String::new())),
+                Ok(MaybeToken::Recursive(Token::PathEntry(String::new()))),
             // TODO: Fix (()) bug.
             (&Token::Text(_), _, _) | (&Token::Bold(_), _, _) | (&Token::Italics(_), _, _) |
-                (&Token::DescriptionEntry(_), _, _) | (&Token::PathEntry(_), _, _) => MaybeToken::NoToken,
-            (_, "*", '*') => MaybeToken::NotRecursive(Token::Bold(String::new())),
-            (_, "*", _) => MaybeToken::Recursive(Token::Italics(String::new())),
-            (_, _, _) => MaybeToken::Recursive(Token::Text(String::new())),
+                (&Token::DescriptionEntry(_), _, _) | (&Token::PathEntry(_), _, _) =>
+                Ok(MaybeToken::NoToken),
+            (_, "*", '*') =>
+                Ok(MaybeToken::NotRecursive(Token::Bold(String::new()))),
+            (_, "*", _) =>
+                Ok(MaybeToken::Recursive(Token::Italics(String::new()))),
+            (_, _, _) =>
+                Ok(MaybeToken::Recursive(Token::Text(String::new()))),
         }
     }
 
@@ -117,3 +132,27 @@ impl Token {
 
 }
 
+impl fmt::Display for Token {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            Token::Slide(_)  => write!(f, "new slide token"),
+            Token::H1(_) => write!(f, "#"),
+            Token::H2(_) => write!(f, "##"),
+            Token::H3(_) => write!(f, "###"),
+            Token::H4(_) => write!(f, "####"),
+            Token::P(_) => write!(f, "new paragraph"),
+            Token::OL(_) => write!(f, "1."),
+            Token::OLEntry(_) => write!(f, "2."),
+            Token::UL(_) => write!(f, "-"),
+            Token::ULEntry(_) => write!(f, "-"),
+            Token::Link(_) => write!(f, "[description](url) e.g., [Google](www.google.com)"),
+            Token::Image(_) => write!(f, "![description](path)"),
+            Token::PathEntry(_) => write!(f, "[Text]"),
+            Token::DescriptionEntry(_) => write!(f, "(Text)"),
+            Token::Text(_) => write!(f, "Text"),
+            Token::Bold(_) => write!(f, "**Text**"),
+            Token::Italics(_) => write!(f, "_Text_"),
+
+        }
+    }
+}

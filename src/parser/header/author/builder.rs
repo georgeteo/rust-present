@@ -1,5 +1,6 @@
 use parser::header::author::author::Author;
 use std;
+use parser::header::error::AuthorError;
 
 // Builder is a builder for an author
 #[derive(Clone)]
@@ -8,13 +9,25 @@ pub struct Builder {
     next_field: AuthorFields,
 }
 
-#[derive(Clone)]
-enum AuthorFields {
+#[derive(Clone, Debug)]
+pub enum AuthorFields {
     Name,
     Job,
     Email,
     Website,
     Blank,
+}
+
+impl std::fmt::Display for AuthorFields {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            &AuthorFields::Name => write!(f, "author name"),
+            &AuthorFields::Job => write!(f, "author job"),
+            &AuthorFields::Email => write!(f, "author email"),
+            &AuthorFields::Website => write!(f, "author website"),
+            &AuthorFields::Blank => write!(f, "blank line"),
+        }
+    }
 }
 
 impl Builder {
@@ -38,7 +51,7 @@ impl Builder {
         self.next_field = AuthorFields::Name;
     }
 
-    pub fn parse(& mut self, input: String, line_num: usize) -> Result<Option<Author>, String> {
+    pub fn parse(& mut self, input: String, line_num: usize) -> Result<Option<Author>, AuthorError> {
         match self.next_field {
             AuthorFields::Name => {self.author.name = Some(input);
                      self.next_field = AuthorFields::Job;},
@@ -53,9 +66,7 @@ impl Builder {
                           self.reset();
                           return Ok(Some(new_author));
                       } else {
-                          return Err(std::fmt::format(format_args!(
-                                  "Line {}: Expected new line, got {}",
-                                                   line_num, input)));
+                          return Err(AuthorError::new(line_num, input, AuthorFields::Blank));
                       }},
         }
         Ok(None)

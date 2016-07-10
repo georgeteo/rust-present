@@ -1,5 +1,7 @@
 pub use self::builder::Builder;
 pub use self::token::Token;
+pub use self::error::SlideError;
 
-pub mod builder;
-pub mod token;
+mod builder;
+mod token;
+mod error;
