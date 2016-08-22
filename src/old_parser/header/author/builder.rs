@@ -1,6 +1,6 @@
-use parser::header::author::author::Author;
+use super::{Author, AuthorFields};
+use super::super::error::AuthorError;
 use std;
-use parser::header::error::AuthorError;
 
 // Builder is a builder for an author
 #[derive(Clone)]

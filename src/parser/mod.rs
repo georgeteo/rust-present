@@ -1,102 +1,72 @@
-mod header;
-mod slide;
+mod meta;
+mod content;
 mod error;
 
-use std::fs::File;
-use std::io::{BufRead, BufReader, Read};
-use parser::error::ParseError;
+use ast::AST;
+use self::error::ParseError;
+use self::meta::MetaBuilder;
+use self::content::ContentBuilder;
 
-// AST is the internal representation for a slide.
-// It consists of a header (front matter) and a AST for the slide content.
-#[derive(Debug, Clone)]
-pub struct AST {
-    header: header::Header,
-    content: Vec<slide::Token>,
+use std::fs::File;
+use std::io::{BufReader, BufRead, Read, Lines};
+use std::iter::{Enumerate, Peekable};
+use std::error::Error;
+
+pub type ParseReader<B: BufRead> = Peekable<Enumerate<Lines<B>>>;
+
+pub trait Parser {
+    type P : Parser; // Parser type
+    type E : Error; // Error type
+    type O; // Completed object type
+
+    fn new() -> Self::P;
+    fn parse<B: BufRead>(mut self, mut reader: ParseReader<B>) -> ParseResult<B, Self::O, Self::E>;
 }
+
+pub struct ParseResult<B: BufRead, O, E: Error>(pub ParseReader<B>, pub Result<O, Vec<E>>);
 
 // Builder for the AST
 #[derive(Debug)]
 pub struct Builder {
     ast: AST,
+    meta_builder: meta::MetaBuilder,
+    content_builder: content::ContentBuilder,
     errors: Vec<ParseError>,
 }
 
-// parse takes an open file descriptor f to a .slide file and parses it
-// into an AST
-pub fn parse(f: File) -> Result<AST, Vec<ParseError>> {
-    let mut builder = Builder::new();
-    let mut reader = BufReader::new(f);
-    builder.parse_header(reader.by_ref());
-    builder.parse_content(reader);
-    builder.build()
-}
+impl Parser for Builder {
+    type P = Builder;
+    type E = ParseError;
+    type O = AST;
 
-impl AST {
-    // AST constructor
-    fn new() -> AST {
-        AST {
-            header: header::Header::new(),
-            content: Vec::new(),
-        }
-    }
-}
-
-impl Builder {
-    // AST Builder constructor
-    fn new() -> Builder {
+    fn new() -> Self::P {
         Builder {
             ast: AST::new(),
+            meta_builder: MetaBuilder::new(),
+            content_builder: ContentBuilder::new(),
             errors: Vec::new(),
         }
     }
 
-    // parse_header borrows a BufReader and consumes the header portion.
-    fn parse_header<R: Read>(& mut self, reader: & mut BufReader<R>) {
-        let mut builder = header::Builder::new();
-        for (line_num, line) in reader.lines().enumerate() {
-            match line {
-                Ok(line) => {
-                    if builder.end(&line) {
-                        break;
-                    }
-                    if let Err(e) = builder.parse(line, line_num) {
-                        self.errors.push(From::from(e));
-                    }
-                },
-                Err(e) => self.errors.push(From::from(e)),
-            }
+    fn parse<B: BufRead>(mut self, reader: ParseReader<B>) -> ParseResult<B, Self::O, Self::E> {
+        // Parse first part of reader stream as meta information.
+        let ParseResult(reader, maybe_meta) = self.meta_builder.parse(reader);
+        match maybe_meta {
+            Ok(meta) => self.ast.update_meta(meta),
+            Err(err) => { return ParseResult(reader,
+                                             Err(err.into_iter().map(|x| From::from(x)).collect())
+                                             ); },
         }
-        self.ast.header = builder.build();
-    }
 
-    // parse_content moves a BufReader (previously consumed by parse_header
-    // and parses the remaining lines into a slide AST.
-    fn parse_content<R: Read>(& mut self, reader: BufReader<R>) {
-        let mut builder = slide::Builder::new(slide::Token::new_slide());
-        for (line_num, line) in reader.lines().enumerate() {
-            match line {
-                Ok(line) => {
-                    for letter in line.chars() {
-                        match builder.parse(false, letter, line_num) {
-                            Ok(Some(slide)) => {
-                                self.ast.content.push(slide);
-                                builder = slide::Builder::new(slide::Token::new_slide());
-                            },
-                            Ok(None) => {},
-                            Err(err) => self.errors.push(From::from(err)),
-                        }
-                    }
-                },
-                Err(err) => self.errors.push(From::from(err)),
-            }
+        // Parse rest of reader stream as content
+        let ParseResult(reader, maybe_content) = self.content_builder.parse(reader);
+        match maybe_content {
+            Ok(content) => { self.ast.content = content; },
+            Err(err) => { return ParseResult(reader,
+                                             Err(err.into_iter().map(|x| From::from(x)).collect())
+                                             ); },
         }
-    }
 
-    fn build(self) -> Result<AST, Vec<ParseError>> {
-        if self.errors.len() == 0 {
-            return Ok(self.ast.clone());
-        }
-        Err(self.errors)
+        ParseResult(reader, Ok(self.ast.clone()))
     }
 }
-

@@ -1,7 +1,7 @@
-use parser::header::header::header;
-use parser::header::header::{Header, HeaderType};
-use parser::header::author;
-use parser::header::error::{Error, HeaderError};
+use super::header;
+use super::header::{Header, HeaderType};
+use super::header::author;
+use super::error::{HeaderError, TokenError};
 
 // Header Builder
 pub struct Builder {
@@ -12,7 +12,7 @@ pub struct Builder {
 impl Builder {
     // parse takes input and line_num and builds header struct
     // TODO: Return Result<(), Error> to inform caller of possibility of error.
-    pub fn parse(& mut self, input: String, line_num: usize) -> Result<(), Error> {
+    pub fn parse(& mut self, input: String, line_num: usize) -> Result<(), HeaderError> {
         let mut maybe_author = Ok(None);
         match line_num {
             0 => self.header.title = Some(header::Title(input)),
@@ -22,7 +22,7 @@ impl Builder {
             4 => {if input == "" {
                       self.author_builder.reset();
                   } else {
-                      return Err(From::from(HeaderError::new(line_num, input, HeaderType::NewLine)));
+                      return Err(From::from(TokenError::new(line_num, input, HeaderType::NewLine)));
                   }},
             _ => {maybe_author = self.author_builder.parse(input, line_num);},
         }

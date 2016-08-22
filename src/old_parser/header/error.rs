@@ -1,73 +1,73 @@
-use parser::header::header::HeaderType;
-use parser::header::author::builder::AuthorFields;
-use std::error;
+use super::header::HeaderType;
+use super::header::author::AuthorFields;
+use std::error::Error;
 use std::fmt;
 
 #[derive(Debug)]
-pub enum Error {
-    HeaderError(HeaderError),
+pub enum HeaderError {
+    LineError(LineError),
     AuthorError(AuthorError),
 }
 
-impl fmt::Display for Error {
+impl fmt::Display for HeaderError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self{
-            Error::HeaderError(ref err) => write!(f, "Header Error: {}", err),
-            Error::AuthorError(ref err) => write!(f, "Author Error: {}", err),
+            HeaderError::LineError(ref err) => write!(f, "LineError: {}", err),
+            HeaderError::AuthorError(ref err) => write!(f, "AuthorError: {}", err),
         }
     }
 }
 
-impl error::Error for Error {
+impl Error for HeaderError {
     fn description(&self) -> &str {
         match *self{
-            Error::HeaderError(ref err) => err.description(),
-            Error::AuthorError(ref err) => err.description(),
+            HeaderError::LineError(ref err) => err.description(),
+            HeaderError::AuthorError(ref err) => err.description(),
         }
     }
 
-    fn cause(&self) -> Option<&error::Error> {
+    fn cause(&self) -> Option<&Error> {
         match *self{
-            Error::HeaderError(ref err) => Some(err),
-            Error::AuthorError(ref err) => Some(err),
+            HeaderError::LineError(ref err) => Some(err),
+            HeaderError::AuthorError(ref err) => Some(err),
         }
     }
 }
 
-impl From<HeaderError> for Error {
-    fn from(err: HeaderError) -> Error {
-        Error::HeaderError(err)
+impl From<LineError> for HeaderError {
+    fn from(err: LineError) -> HeaderError {
+        HeaderError::LineError(err)
     }
 }
 
-impl From<AuthorError> for Error {
+impl From<AuthorError> for HeaderError {
     fn from(err: AuthorError) -> Error {
-        Error::AuthorError(err)
+        HeaderError::AuthorError(err)
     }
 }
 
 #[derive(Debug)]
-pub struct HeaderError {
+pub struct LineError {
     line_num: usize,
     input: String,
     expected: HeaderType,
 }
 
-impl fmt::Display for HeaderError {
+impl fmt::Display for LineError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "Line {}: Expected {} - Got {}\n", self.line_num, self.expected, self.input)
     }
 }
 
-impl error::Error for HeaderError {
+impl Error for LineError {
     fn description(&self) -> &str {
-        "Header Error"
+        "Token Error"
     }
 }
 
-impl HeaderError {
-    pub fn new(line_num: usize, input: String, expected: HeaderType) -> HeaderError {
-        HeaderError {
+impl LineError {
+    pub fn new(line_num: usize, input: String, expected: HeaderType) -> LineError {
+        LineError {
             line_num: line_num,
             input: input,
             expected: expected,
@@ -88,7 +88,7 @@ impl fmt::Display for AuthorError {
     }
 }
 
-impl error::Error for AuthorError {
+impl Error for AuthorError {
     fn description(&self) -> &str {
         "Author Error"
     }
